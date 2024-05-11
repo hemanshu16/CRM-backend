@@ -4,10 +4,12 @@ import APIResponse from "../models/apiResponse";
 import bodyParser from 'body-parser';
 import { Content } from "../models/types/content";
 
+const cors = require('cors');
 const app: Express = express();
 const port = process.env.PORT || 3000;
 const prisma = new PrismaClient();
 app.use(bodyParser.json());
+app.use(cors());
 
 app.get("/api/content/:id", async (req: Request, res: Response) => {
   try {
@@ -24,7 +26,35 @@ app.get("/api/content/:id", async (req: Request, res: Response) => {
 }
 )
 
+app.get("/api/content", async (req: Request, res: Response) => {
+  try {
+    let content = await prisma.content.findMany();
+   
+      res.status(200).json(new APIResponse(content));
+   
+  }
+  catch (error) {
+    res.status(500).json(new APIResponse(error));
+  }
+}
+)
+
 app.post("/api/content", async (req: Request, res: Response) => {
+  let content;
+  try {
+    content = await prisma.content.findUnique({ where: { contentId: req.body.contentId } });
+    if(content)
+      {
+        res.status(400).json(new APIResponse("Please Provide Unique Id, With This Id Content Exist"));
+        return;
+      }
+  }
+  catch (error: any) {
+    res.status(500).json(new APIResponse(error));
+    return;
+  }
+  
+  
   try {
     await prisma.content.create({ data: req.body });
     res.status(201).json(new APIResponse(req.body));
@@ -42,10 +72,12 @@ app.put("/api/content", async (req: Request, res: Response) => {
   }
   catch (error: any) {
     res.status(500).json(new APIResponse(error));
+    return;
   }
 
   if (content == null) {
-    res.sendStatus(400).json(new APIResponse("Not Valid Content Id"));
+    res.status(400).json(new APIResponse("Not Valid Content Id"));
+    return;
   }
 
   try {
