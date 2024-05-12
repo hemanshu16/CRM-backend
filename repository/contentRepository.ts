@@ -7,7 +7,7 @@ import { Content } from "./interface/icontent"
 export class contentRepository {
   readAll(): Promise<Content[]> {
     return new Promise((resolve, reject) => {
-      connection.query<Content[]>("SELECT * FROM content", (err, res) => {
+      connection.query<Content[]>("SELECT * FROM content ORDER BY contentId", (err, res) => {
         if (err) reject(err)
         else resolve(res)
       })
