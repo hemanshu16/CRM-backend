@@ -3,6 +3,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import APIResponse from "../models/apiResponse";
 import bodyParser from 'body-parser';
 import { Content } from "../models/types/content";
+import { contentRepository } from "../repository/contentRepository";
 
 const cors = require('cors');
 const app: Express = express();
@@ -10,6 +11,7 @@ const port = process.env.PORT || 3000;
 const prisma = new PrismaClient();
 app.use(bodyParser.json());
 app.use(cors());
+const _contentRepository = new contentRepository();
 
 app.get("/api/content/:id", async (req: Request, res: Response) => {
   try {
@@ -28,7 +30,7 @@ app.get("/api/content/:id", async (req: Request, res: Response) => {
 
 app.get("/api/content", async (req: Request, res: Response) => {
   try {
-    let content = await prisma.content.findMany();
+    let content = await  _contentRepository.readAll();
    
       res.status(200).json(new APIResponse(content));
    
@@ -42,7 +44,7 @@ app.get("/api/content", async (req: Request, res: Response) => {
 app.post("/api/content", async (req: Request, res: Response) => {
   let content;
   try {
-    content = await prisma.content.findUnique({ where: { contentId: req.body.contentId } });
+    content = await _contentRepository.readById(req.body.contentId);
     if(content)
       {
         res.status(400).json(new APIResponse("Please Provide Unique Id, With This Id Content Exist"));
@@ -56,7 +58,7 @@ app.post("/api/content", async (req: Request, res: Response) => {
   
   
   try {
-    await prisma.content.create({ data: req.body });
+    await _contentRepository.create(req.body);
     res.status(201).json(new APIResponse(req.body));
   }
   catch (error) {
@@ -65,10 +67,10 @@ app.post("/api/content", async (req: Request, res: Response) => {
 
 })
 
-app.put("/api/content", async (req: Request, res: Response) => {
+app.put("/api/content/:contentId", async (req: Request, res: Response) => {
   let content;
   try {
-    content = await prisma.content.findUnique({ where: { contentId: req.body.contentId } });
+    content = await _contentRepository.readById(req.params.contentId);
   }
   catch (error: any) {
     res.status(500).json(new APIResponse(error));
@@ -81,15 +83,8 @@ app.put("/api/content", async (req: Request, res: Response) => {
   }
 
   try {
-    let savedContent: Content = await prisma.content.update({
-      where: {
-        contentId: req.body.contentId
-      },
-      data: {
-        content: req.body.content
-      }
-    });
-    res.status(200).json(new APIResponse(savedContent));
+    await _contentRepository.update(req.body,req.params.contentId);
+    res.status(200).json(new APIResponse(req.body));
   }
   catch (error) {
     res.status(500).json(new APIResponse(error));
@@ -100,7 +95,12 @@ app.put("/api/content", async (req: Request, res: Response) => {
 
 app.delete("/api/content/:id", async (req: Request, res: Response) => {
   try {
-    await prisma.content.delete({ where: { contentId: req.params.id } });
+    const row_affected : number = await _contentRepository.remove(req.params.id);
+    if(row_affected == 0)
+      {
+        res.status(404).json(new APIResponse("Wrong Content Id, No Content Exist With This Id"));
+        return;
+      }
     res.status(200).json(new APIResponse("Successfully Deleted"));
   }
   catch (error: any) {
